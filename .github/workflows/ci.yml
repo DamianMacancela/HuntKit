@@ -22,8 +22,10 @@ jobs:
         shell: pwsh
         run: |
           Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
-          Install-Module Pester           -MinimumVersion 5.5.0 -Scope CurrentUser -Force -SkipPublisherCheck
-          Install-Module PSScriptAnalyzer -MinimumVersion 1.21  -Scope CurrentUser -Force
+          # Petestar: pin a >=5.5 <6 para evitar breaking changes de Pester 6.x
+          # Si el runner ya tiene Pester 6, la instalamos igualmente
+          Install-Module Pester           -RequiredVersion 5.7.1 -Scope CurrentUser -Force -SkipPublisherCheck
+          Install-Module PSScriptAnalyzer -MinimumVersion 1.21   -Scope CurrentUser -Force
 
       - name: Validate module manifest
         shell: pwsh
@@ -61,7 +63,7 @@ jobs:
           $config.CodeCoverage.Enabled       = $true
           $config.CodeCoverage.Path          = '.\HuntKit\HuntKit.psm1'
           $config.CodeCoverage.OutputPath    = 'coverage.xml'
-          $config.CodeCoverage.OutputFormat  = 'CoverageGutters'
+          $config.CodeCoverage.OutputFormat  = 'JaCoCo'
 
           $result = Invoke-Pester -Configuration $config
 
@@ -79,3 +81,4 @@ jobs:
           path: |
             TestResults.xml
             coverage.xml
+          if-no-files-found: ignore
