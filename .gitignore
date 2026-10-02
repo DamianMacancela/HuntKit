@@ -1,0 +1,10 @@
+baseline.json
+*.html
+*.evtx
+*.csv
+*.evtx
+*.xml
+coverage.xml
+TestResults.xml
+.env
+.env.*

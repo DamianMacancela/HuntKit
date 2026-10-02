@@ -1,0 +1,66 @@
+name: CI – HuntKit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-test:
+    name: PSScriptAnalyzer + Pester
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+          Install-Module Pester           -MinimumVersion 5.5.0 -Scope CurrentUser -Force -SkipPublisherCheck
+          Install-Module PSScriptAnalyzer -MinimumVersion 1.21  -Scope CurrentUser -Force
+
+      - name: Lint – PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          $results = Invoke-ScriptAnalyzer -Path .\HuntKit -Recurse -Severity Warning,Error
+          if ($results) {
+            $results | Format-Table -AutoSize
+            Write-Error "PSScriptAnalyzer encontro $($results.Count) warning(s)/error(s)."
+            exit 1
+          }
+          Write-Host "PSScriptAnalyzer: sin hallazgos." -ForegroundColor Green
+
+      - name: Test – Pester
+        shell: pwsh
+        run: |
+          $config = New-PesterConfiguration
+          $config.Run.Path          = '.\tests'
+          $config.Output.Verbosity  = 'Detailed'
+          $config.TestResult.Enabled           = $true
+          $config.TestResult.OutputPath        = 'TestResults.xml'
+          $config.TestResult.OutputFormat      = 'NUnitXml'
+          $config.CodeCoverage.Enabled         = $true
+          $config.CodeCoverage.Path            = '.\HuntKit\HuntKit.psm1'
+          $config.CodeCoverage.OutputPath      = 'coverage.xml'
+          $config.CodeCoverage.OutputFormat    = 'CoverageGutters'
+
+          $result = Invoke-Pester -Configuration $config
+          if ($result.FailedCount -gt 0) {
+            Write-Error "Pester: $($result.FailedCount) test(s) fallaron."
+            exit 1
+          }
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            TestResults.xml
+            coverage.xml
