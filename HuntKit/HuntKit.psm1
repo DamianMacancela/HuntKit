@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
     HuntKit - Threat Hunting toolkit para Windows.
@@ -18,10 +18,10 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-# ── Tabla de severidad (texto → numero para comparar) ────────────────────────
+# --- Tabla de severidad (texto ? numero para comparar) ---
 $script:SeverityRank = @{ Low = 1; Medium = 2; High = 3; Critical = 4 }
 
-# ── Reglas de Script-Block (EID 4104) ─────────────────────────────────────────
+# --- Reglas de Script-Block (EID 4104) ---
 $script:ScriptBlockRules = @(
     @{
         Id       = 'SB001'
@@ -102,7 +102,7 @@ $script:ScriptBlockRules = @(
     }
 )
 
-#region ── Helpers privados ────────────────────────────────────────────────────
+#region --- Helpers privados ---
 
 function Test-IsAdmin {
     $id = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -149,7 +149,7 @@ function ConvertTo-PersistenceItem {
 
 #endregion
 
-#region ── Colectores de persistencia ─────────────────────────────────────────
+#region --- Colectores de persistencia ---
 
 function Get-RunKeyPersistence {
     [OutputType([pscustomobject[]])]
@@ -196,10 +196,12 @@ function Get-ScheduledTaskPersistence {
             if (-not $IncludeMicrosoft -and $t.TaskPath -like '\Microsoft\Windows\*') { continue }
 
             foreach ($a in $t.Actions) {
-                # Las acciones COM no tienen 'Execute'; acceder por PSObject evita errores
-                $exec = $a.PSObject.Properties['Execute']
-                $args = $a.PSObject.Properties['Arguments']
-                $cmd  = (($exec?.Value) + ' ' + ($args?.Value)).Trim()
+                # Las acciones COM no tienen 'Execute'; PSObject.Properties evita errores
+                $execProp = $a.PSObject.Properties['Execute']
+                $argsProp  = $a.PSObject.Properties['Arguments']
+                $execStr   = if ($null -ne $execProp)  { [string]$execProp.Value }  else { '' }
+                $argsStr   = if ($null -ne $argsProp)  { [string]$argsProp.Value }  else { '' }
+                $cmd       = "$execStr $argsStr".Trim()
 
                 ConvertTo-PersistenceItem `
                     -Type     'ScheduledTask' `
@@ -293,7 +295,7 @@ function Get-StartupFolderPersistence {
 
 #endregion
 
-#region ── Snapshot, baseline y diff ──────────────────────────────────────────
+#region --- Snapshot, baseline y diff ---
 
 function Get-PersistenceSnapshot {
 <#
@@ -508,7 +510,7 @@ function Get-PersistenceDrift {
 
 #endregion
 
-#region ── Motor de reglas Script-Block ───────────────────────────────────────
+#region --- Motor de reglas Script-Block ---
 
 function Test-ScriptBlockText {
 <#
@@ -741,7 +743,7 @@ function Find-SuspiciousScriptBlock {
 
 #endregion
 
-#region ── Reporte HTML (seguro) ───────────────────────────────────────────────
+#region --- Reporte HTML (seguro) ---
 
 function Export-HuntReport {
 <#
