@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   lint-and-test:
-    name: PSScriptAnalyzer + Pester
+    name: Validate · Lint · Test
     runs-on: windows-latest
 
     steps:
@@ -25,42 +25,57 @@ jobs:
           Install-Module Pester           -MinimumVersion 5.5.0 -Scope CurrentUser -Force -SkipPublisherCheck
           Install-Module PSScriptAnalyzer -MinimumVersion 1.21  -Scope CurrentUser -Force
 
+      - name: Validate module manifest
+        shell: pwsh
+        run: |
+          $result = Test-ModuleManifest -Path .\HuntKit\HuntKit.psd1 -ErrorAction Stop
+          Write-Host "Manifest OK: $($result.Name) v$($result.Version)" -ForegroundColor Green
+
       - name: Lint – PSScriptAnalyzer
         shell: pwsh
         run: |
-          $results = Invoke-ScriptAnalyzer -Path .\HuntKit -Recurse -Severity Warning,Error
+          $settings = @{
+            Severity    = @('Error','Warning')
+            ExcludeRule = @(
+              # PSAvoidUsingWriteHost: necesario para output de consola en un modulo de hunting
+              'PSAvoidUsingWriteHost'
+            )
+          }
+          $results = Invoke-ScriptAnalyzer -Path .\HuntKit -Recurse @settings
           if ($results) {
-            $results | Format-Table -AutoSize
-            Write-Error "PSScriptAnalyzer encontro $($results.Count) warning(s)/error(s)."
+            $results | Format-Table ScriptName, Line, Severity, RuleName, Message -AutoSize
+            Write-Error "PSScriptAnalyzer: $($results.Count) hallazgo(s). Corrige antes de merge."
             exit 1
           }
           Write-Host "PSScriptAnalyzer: sin hallazgos." -ForegroundColor Green
 
-      - name: Test – Pester
+      - name: Test – Pester with coverage
         shell: pwsh
         run: |
           $config = New-PesterConfiguration
-          $config.Run.Path          = '.\tests'
-          $config.Output.Verbosity  = 'Detailed'
-          $config.TestResult.Enabled           = $true
-          $config.TestResult.OutputPath        = 'TestResults.xml'
-          $config.TestResult.OutputFormat      = 'NUnitXml'
-          $config.CodeCoverage.Enabled         = $true
-          $config.CodeCoverage.Path            = '.\HuntKit\HuntKit.psm1'
-          $config.CodeCoverage.OutputPath      = 'coverage.xml'
-          $config.CodeCoverage.OutputFormat    = 'CoverageGutters'
+          $config.Run.Path                   = '.\tests'
+          $config.Output.Verbosity           = 'Detailed'
+          $config.TestResult.Enabled         = $true
+          $config.TestResult.OutputPath      = 'TestResults.xml'
+          $config.TestResult.OutputFormat    = 'NUnitXml'
+          $config.CodeCoverage.Enabled       = $true
+          $config.CodeCoverage.Path          = '.\HuntKit\HuntKit.psm1'
+          $config.CodeCoverage.OutputPath    = 'coverage.xml'
+          $config.CodeCoverage.OutputFormat  = 'CoverageGutters'
 
           $result = Invoke-Pester -Configuration $config
+
           if ($result.FailedCount -gt 0) {
             Write-Error "Pester: $($result.FailedCount) test(s) fallaron."
             exit 1
           }
+          Write-Host "Pester: $($result.PassedCount) tests OK." -ForegroundColor Green
 
-      - name: Upload test results
+      - name: Upload test and coverage artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results
+          name: test-results-${{ github.run_id }}
           path: |
             TestResults.xml
             coverage.xml
