@@ -313,9 +313,14 @@ Describe 'Compare-PersistenceSnapshot' {
 # ── Save / Get-PersistenceDrift con Run Key real (Windows) ────────────────────
 Describe 'Save-PersistenceBaseline / Get-PersistenceDrift (sistema real)' {
 
-    BeforeAll {
+BeforeAll {
         $script:BaselinePath = Join-Path $TestDrive 'baseline.json'
         $script:RegPath      = 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run'
+
+        # FIX: En GitHub Actions (runneradmin), a veces la clave Run de HKCU no existe por defecto.
+        if (-not (Test-Path $script:RegPath)) {
+            New-Item -Path $script:RegPath -Force | Out-Null
+        }
     }
 
     It 'Guarda un JSON valido con estructura v2.0' {
