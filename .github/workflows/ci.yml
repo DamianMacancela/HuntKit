@@ -21,6 +21,10 @@ jobs:
       - name: Install dependencies
         shell: pwsh
         run: |
+          # Ensure PSGallery repository is registered
+          if (-not (Get-PSRepository -Name PSGallery -ErrorAction SilentlyContinue)) {
+            Register-PSRepository -Default
+          }
           Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
           # Petestar: pin a >=5.5 <6 para evitar breaking changes de Pester 6.x
           # Si el runner ya tiene Pester 6, la instalamos igualmente
