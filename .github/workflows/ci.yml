@@ -13,6 +13,8 @@ jobs:
   lint-and-test:
     name: Validate · Lint · Test
     runs-on: windows-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - name: Checkout
